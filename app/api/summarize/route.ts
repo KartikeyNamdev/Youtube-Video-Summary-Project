@@ -6,7 +6,7 @@ import type { Database } from "@/lib/nhost-types";
 import { generateSummaryWithOpenRouter } from "@/lib/openrouter";
 import { getYouTubeTranscript } from "@/lib/youtube";
 
-const nhost = new NhostClient({
+export const nhost = new NhostClient({
   subdomain: process.env.NHOST_SUBDOMAIN!,
   region: process.env.NHOST_REGION!,
 });
@@ -14,7 +14,6 @@ const nhost = new NhostClient({
 export async function POST(request: Request) {
   try {
     const { url } = await request.json();
-    console.log(url);
     const videoId = extractVideoId(url);
     if (!videoId) {
       return NextResponse.json(
@@ -25,37 +24,37 @@ export async function POST(request: Request) {
 
     // const videoData = await getVideoMetadata(videoId);
     const transcript = await getYouTubeTranscript(videoId);
-    const summary = await generateSummaryWithOpenRouter(transcript);
+    const summary = await generateSummaryWithOpenRouter(transcript, url);
 
-    const { data, error } = await nhost.graphql.request(
-      `
-      mutation InsertVideoSummary($video_url: String!, $video_title: String!, $summary: String!, $user_id: uuid!) {
-        insert_video_summaries_one(object: {
-          video_url: $video_url,
-          video_title: $video_title,
-          summary: $summary,
-          user_id: $user_id
-        }) {
-          id
-          created_at
-          video_url
-          video_title
-          summary
-          user_id
-        }
-      }
-    `,
-      {
-        video_url: url,
-        // video_title: videoData.title,
-        summary,
-        user_id: "USER_ID", // Replace with actual user ID from auth
-      }
-    );
+    // const { data, error } = await nhost.graphql.request(
+    //   `
+    //   mutation InsertVideoSummary($video_url: String!, $video_title: String!, $summary: String!, $user_id: uuid!) {
+    //     insert_video_summaries_one(object: {
+    //       video_url: $video_url,
+    //       video_title: $video_title,
+    //       summary: $summary,
+    //       user_id: $user_id
+    //     }) {
+    //       id
+    //       created_at
+    //       video_url
+    //       video_title
+    //       summary
+    //       user_id
+    //     }
+    //   }
+    // `,
+    //   {
+    //     video_url: url,
+    //     // video_title: videoData.title,
+    //     summary,
+    //     user_id: "USER_ID", // Replace with actual user ID from auth
+    //   }
+    // );
 
-    if (error) throw error;
+    // if (error) throw error;
 
-    return NextResponse.json(data.insert_video_summaries_one);
+    return NextResponse.json(summary);
   } catch (error) {
     console.error("Error:", error);
     return NextResponse.json(
@@ -77,6 +76,7 @@ async function getVideoMetadata(videoId: string) {
     `https://www.googleapis.com/youtube/v3/videos?id=${videoId}&key=${process.env.YOUTUBE_API_KEY}&part=snippet`
   );
   const data = await response.json();
+  // console.log(data);
   return {
     title: data.items[0].snippet.title,
   };
